@@ -63,12 +63,17 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     uint256 public startBlock;
     // The totalSupply 
     uint256 public totalSupply;
-    uint256 public constant HARD_CAP = 460000e18;
+    uint256 public constant HARD_CAP = 450000e18;
+    uint256 public constant MAX_FEE = 10000; 
     uint256 public burnFee = 500; 
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
-    event EmergencyWithdraw(address indexed user, uint256 indexed pid, uint256 amount);
+    event EmergencyWithdraw(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amount
+    );
     event SetFeeAddress(address indexed user, address indexed newAddress);
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 brewPerBlock);
@@ -92,7 +97,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
         _;
     }
-    
+
     modifier isPoolExist(uint256 _pid) {
         require(_pid < poolLength(), "isPoolExist: pool not exist");
         _;
@@ -156,6 +161,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     function getMultiplier(uint256 _from, uint256 _to) public pure returns (uint256) {
         return _to.sub(_from);
     }
+
     // View function to see pending BREWs on frontend.
     function pendingBrew(uint256 _pid, address _user)
         external
@@ -167,7 +173,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         UserInfo storage user = userInfo[_pid][_user];
         uint256 accBrewPerShare = pool.accBrewPerShare;
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (block.number > pool.lastRewardBlock && lpSupply != 0 ) {
+        if (block.number > pool.lastRewardBlock && lpSupply != 0) {
             uint256 multiplier =
                 getMultiplier(pool.lastRewardBlock, block.number);
             uint256 brewReward =
@@ -175,7 +181,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                     totalAllocPoint
                 );
             if(totalSupply.add(brewReward) >= HARD_CAP){
-                brewReward = HARD_CAP - totalSupply;
+                brewReward = HARD_CAP.sub(totalSupply);
             }    
             brewReward = brewReward.sub(brewReward.div(10));
             accBrewPerShare = accBrewPerShare.add(
@@ -205,9 +211,10 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 brewReward =multiplier.mul(brewPerBlock).mul(pool.allocPoint).div( totalAllocPoint );
+        uint256 brewReward = 
+            multiplier.mul(brewPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
         if(totalSupply.add(brewReward) >= HARD_CAP){
-            brewReward = HARD_CAP - totalSupply;
+            brewReward = HARD_CAP.sub(totalSupply);
             brewPerBlock = 0;
         }    
         totalSupply = totalSupply.add(brewReward);
@@ -232,7 +239,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                 );
             if (pending > 0) {
                 user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-                uint256 fee = (pending * burnFee) / 10000;
+                uint256 fee = (pending.mul(burnFee)).div(MAX_FEE);
                 if(safeBrewBurn(fee)){
                     safeBrewTransfer(msg.sender, (pending.sub(fee)));
                 }
@@ -268,7 +275,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             );
         if (pending > 0) {
             user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-            uint256 fee = (pending * burnFee) / 10000;
+            uint256 fee = (pending.mul(burnFee)).div(MAX_FEE);
             if(safeBrewBurn(fee)){
                 safeBrewTransfer(msg.sender, (pending.sub(fee)));
             }
