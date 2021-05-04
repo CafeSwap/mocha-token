@@ -694,7 +694,7 @@ contract Ownable is Context {
     }
 }
 
-// File: contracts/MochaTokenOld.sol
+// File: contracts/MochaToken.sol
 
 // SPDX-License-Identifier: MIT
 
@@ -716,11 +716,18 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
      */ 
     address public admin;
 
+    /** 
+    * @dev burn address is where the tokens are going to be sent to instead
+    * of being burned. This makes it easier for users to keep track of.
+    * This isn't changeable for trust and security reasons.
+    */
+    address public burnAddress = 0x000000000000000000000000000000000000dEaD;
+
     /// @dev These are used to calcualte how much of the token is to be burned.
     uint constant public BURN_FEE = 900;
     uint constant public REWARD_FEE = 100;
     uint constant public MAX_FEE = 100000;
-    uint256 constant public HARD_CAP = 10 ** 7 * 1e18;
+    uint256 constant public HARD_CAP = 5 * 10 ** 5 * 1e18;
     
     /// @dev List of whitelisted addresses
     mapping (address => bool) public whiteList;
@@ -761,13 +768,14 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
      * white listed. If a user is white listed a normal transfer occurs.
      */
     function _transfer(address sender, address recipient, uint256 amount) internal virtual override {
-        super._transfer(sender, recipient, amount);
-
         // We want to burn tokens if both the sender/recipient aren't whitelisted
         if(whiteList[sender] == false && whiteList[recipient] == false) {
             (uint256 toBurn, uint256 toReward) = calculateFees(amount);
-            _burn(recipient, toBurn.add(toReward));
-            _mint(rewardAddress, toReward);
+            super._transfer(sender, recipient, amount.sub(toBurn.add(toReward)));
+            super._transfer(sender, burnAddress, toBurn);
+            super._transfer(sender, rewardAddress, toReward);
+        } else {
+            super._transfer(sender, recipient, amount);
         }
     }
 
