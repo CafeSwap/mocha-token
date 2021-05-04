@@ -90,9 +90,14 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
         return (toBurn, toReward);
     }
 
-    /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (MasterGardener).
+    /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (MasterChef).
     function mint(address _to, uint256 _amount) public onlyOwner checkHardCap(_amount) {
         _mint(_to, _amount);
+    }
+
+    /// @notice Burns `_amount` token to `_to`. Must only be called by the owner (MasterChef).
+    function burn(address _to, uint256 _amount) public onlyOwner {
+        _burn(_to, _amount);
     }
 
     /// @dev Sets the account to whitelist and not whitelist
