@@ -40,7 +40,7 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
 
     // Check which makes sure that the HARD_CAP wasn't reached 
     modifier checkHardCap(uint256 amount) {
-        require(totalSupply().add(amount) <= HARD_CAP, "Supply is greater than 10 mil");
+        require(totalSupply().add(amount) <= HARD_CAP, "Supply is greater than 500k!");
         _;
     }
 
