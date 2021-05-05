@@ -61,7 +61,7 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
     }
 
     /// @notice This is where the address of the reward pool is set.
-    function setRewardAddress(address _rewardAddress) public onlyOwner {
+    function setRewardAddress(address _rewardAddress) public onlyAdmin() {
         rewardAddress = _rewardAddress;
         emit SetRewardAddress(msg.sender,_rewardAddress);
     }
