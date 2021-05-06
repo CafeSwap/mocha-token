@@ -108,7 +108,7 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
 
     /// @dev function to change the `admin` address, can only be done by the address
     function changeAdmin(address _admin) public onlyAdmin() {
-        require(admin != address(0), "Admin can't be 0x00000");
+        require(_admin != address(0), "Admin can't be 0x00000");
         admin = _admin;
     }
 }
