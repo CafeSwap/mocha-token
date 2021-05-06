@@ -213,7 +213,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
         uint256 brewReward = 
             multiplier.mul(brewPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        if(totalSupply.add(brewReward) >= HARD_CAP){
+        if(totalSupply.add(brewReward) >= HARD_CAP) {
             brewReward = HARD_CAP.sub(totalSupply);
             brewPerBlock = 0;
         }    
