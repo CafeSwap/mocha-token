@@ -24,19 +24,20 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
     * of being burned. This makes it easier for users to keep track of.
     * This isn't changeable for trust and security reasons.
     */
-    address public burnAddress = 0x000000000000000000000000000000000000dEaD;
+    address constant public BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
     /// @dev These are used to calcualte how much of the token is to be burned.
     uint constant public BURN_FEE = 900;
     uint constant public REWARD_FEE = 100;
     uint constant public MAX_FEE = 100000;
     uint256 constant public HARD_CAP = 5 * 10 ** 5 * 1e18;
-    
+
     /// @dev List of whitelisted addresses
     mapping (address => bool) public whiteList;
 
     event WhiteList(address account, bool status);
     event SetRewardAddress(address caller, address newRewardAddress);
+    event AdminChange(address caller, address newAdminAddress);
 
     // Check which makes sure that the HARD_CAP wasn't reached 
     modifier checkHardCap(uint256 amount) {
@@ -56,6 +57,7 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
      * just incase a deployer contract is used.
      */
     constructor (address _rewardAddress, address _admin) public {
+        require(_admin != address(0), "Admin can't be 0x00000");
         rewardAddress = _rewardAddress;
         admin = _admin;
     }
@@ -63,7 +65,7 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
     /// @notice This is where the address of the reward pool is set.
     function setRewardAddress(address _rewardAddress) public onlyAdmin() {
         rewardAddress = _rewardAddress;
-        emit SetRewardAddress(msg.sender,_rewardAddress);
+        emit SetRewardAddress(msg.sender, _rewardAddress);
     }
 
     /**
@@ -75,7 +77,7 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
         if(whiteList[sender] == false && whiteList[recipient] == false) {
             (uint256 toBurn, uint256 toReward) = calculateFees(amount);
             super._transfer(sender, recipient, amount.sub(toBurn.add(toReward)));
-            super._transfer(sender, burnAddress, toBurn);
+            super._transfer(sender, BURN_ADDRESS, toBurn);
             super._transfer(sender, rewardAddress, toReward);
         } else {
             super._transfer(sender, recipient, amount);
@@ -110,5 +112,6 @@ contract MochaToken is ERC20("MochaToken", "MOCHA"), Ownable {
     function changeAdmin(address _admin) public onlyAdmin() {
         require(_admin != address(0), "Admin can't be 0x00000");
         admin = _admin;
+        emit AdminChange(msg.sender, _admin);
     }
 }
