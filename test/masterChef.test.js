@@ -4,14 +4,16 @@ const masterChefV2 = artifacts.require('MasterChefV2');
 const MochaToken = artifacts.require('MochaToken');
 const Mocktoken = artifacts.require('MockBEP20');
 
-
+// @NOTE TO RUN THESE TESTS create a flat MasterChefV2 file and put it inside /contracts
+// Then change the `.sol` to `.txt` for `MasterChefV2.sol` and `MochaToken.sol` but 
+// not the newly created flat file. ALSO in the flat file remove duplicate libraries
 
 contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
 
     context('masterChef test', () => {
         beforeEach(async () => {
 
-           this.mocha = await MochaToken.new(dev,{ from: minter });
+            this.mocha = await MochaToken.new(dev, minter, { from: minter });
 
             this.lp1 = await Mocktoken.new({from: minter});
             this.lp2 = await Mocktoken.new({from: minter});
@@ -29,8 +31,19 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
         it('should give out mochas only after farming time', async () => {
             // 1000 per block farming rate starting at block 100 
             
-            this.masterChef = await masterChefV2.new(this.mocha.address,minter,minter,'1000','100',{from: minter});
-            await this.mocha.whiteListAccount(this.masterChef.address,true,{from:minter})
+            this.masterChef = await masterChefV2.new(
+                this.mocha.address,
+                minter,
+                minter,
+                '1000',
+                '100',
+                { from: minter }
+            );
+            await this.mocha.setWhiteListAccount(
+                this.masterChef.address,
+                true,
+                { from: minter }
+            )
 
             await this.mocha.transferOwnership(this.masterChef.address,{from:minter});
 
@@ -59,7 +72,7 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
 
         it('should give proper mochas allocation to each pool and deduct 5% fee on rewards distribution ', async () => {
             this.masterChef = await masterChefV2.new(this.mocha.address,minter,minter,'1000','200',{from: minter});
-            await this.mocha.whiteListAccount(this.masterChef.address,true,{from:minter})
+            await this.mocha.setWhiteListAccount(this.masterChef.address,true,{from:minter})
 
             await this.mocha.transferOwnership(this.masterChef.address, { from: minter });
             await this.lp1.approve(this.masterChef.address, '1000', { from: alice });
@@ -86,7 +99,7 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
         it('should distribute mochas properly for each staker', async () =>{
             // 100 per block farming rate starting at block 300 with bonus until block 1000
             this.masterChef = await masterChefV2.new(this.mocha.address, minter, minter,'1000', '300', { from: minter });
-            await this.mocha.whiteListAccount(this.masterChef.address,true,{from:minter})
+            await this.mocha.setWhiteListAccount(this.masterChef.address, true, { from: minter })
 
             await this.mocha.transferOwnership(this.masterChef.address, { from: minter });
             await this.masterChef.add('100', this.lp1.address, '0',true,{ from: minter });
@@ -122,9 +135,9 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
         
         });
 
-        it('should distribute only 460k mochas  after it brewPerBlock becomes 0(no reward distribution)', async () => {
+        it('should distribute only 450k mochas  after it brewPerBlock becomes 0(no reward distribution)', async () => {
             this.masterChef = await masterChefV2.new(this.mocha.address, minter, minter,web3.utils.toWei('23000'), '400', { from: minter });
-            await this.mocha.whiteListAccount(this.masterChef.address,true,{from:minter})
+            await this.mocha.setWhiteListAccount(this.masterChef.address,true,{from:minter})
 
             await this.mocha.transferOwnership(this.masterChef.address, { from: minter });
             await this.masterChef.add('100', this.lp1.address, '0',true,{ from: minter });
@@ -145,30 +158,31 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
             await time.advanceBlockTo('419')
             await this.masterChef.deposit(0, '10', { from: alice }); 111435
             assert.equal((await this.masterChef.totalSupply()).valueOf(), web3.utils.toWei('230000'));
+            console.log(web3.utils.fromWei(await this.mocha.balanceOf(alice)));
             assert.equal((await this.mocha.balanceOf(alice)).valueOf(),  web3.utils.toWei('111435'));
             assert.equal((await this.mocha.balanceOf(bob)).valueOf(), '0');
             assert.equal((await this.mocha.balanceOf(carol)).valueOf(), '0');
             assert.equal((await this.mocha.balanceOf(minter)).valueOf(), web3.utils.toWei('23000'));
             
-            await time.advanceBlockTo('429')
+            await time.advanceBlockTo('900')
             await this.masterChef.withdraw(0, '5', { from: bob });
-            assert.equal((await this.masterChef.totalSupply()).valueOf(), web3.utils.toWei('460000'));
-            assert.equal((await this.mocha.balanceOf(carol)).valueOf(), '0');
-            assert.equal((await this.mocha.balanceOf(minter)).valueOf(),  web3.utils.toWei('46000'));
+            console.log(web3.utils.fromWei(await this.masterChef.totalSupply()).valueOf());
 
+            assert.equal((await this.masterChef.totalSupply()).valueOf(), web3.utils.toWei('450000'));
+            assert.equal((await this.mocha.balanceOf(carol)).valueOf(), '0');
+            assert.equal((await this.mocha.balanceOf(minter)).valueOf(),  web3.utils.toWei('45000'));
             assert.equal((await this.masterChef.brewPerBlock()).valueOf(), '0');
 
-            await time.advanceBlockTo('459')
+            await time.advanceBlockTo('949')
             await this.masterChef.withdraw(0, '5', { from: bob });
-            assert.equal((await this.masterChef.totalSupply()).valueOf(), web3.utils.toWei('460000'));
+            assert.equal((await this.masterChef.totalSupply()).valueOf(), web3.utils.toWei('450000'));
             assert.equal((await this.mocha.balanceOf(carol)).valueOf(), '0');
-            assert.equal((await this.mocha.balanceOf(minter)).valueOf(),  web3.utils.toWei('46000'));
-        
+            assert.equal((await this.mocha.balanceOf(minter)).valueOf(),  web3.utils.toWei('45000'));
         });
 
         it('should allow emergency withdraw', async () => {
             this.masterChef = await masterChefV2.new(this.mocha.address, minter,minter, '100', '100',  { from: alice });
-            await this.mocha.whiteListAccount(this.masterChef.address,true,{from:minter})
+            await this.mocha.setWhiteListAccount(this.masterChef.address,true,{from:minter})
 
             await this.mocha.transferOwnership(this.masterChef.address, { from: minter });
             await this.masterChef.add('100', this.lp1.address, 0,true);
@@ -181,7 +195,7 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
 
         it('should deduct deposit fee on each deposit ', async () => {
             this.masterChef = await masterChefV2.new(this.mocha.address, minter,minter, '100', '100',  { from: alice });
-            await this.mocha.whiteListAccount(this.masterChef.address,true,{from:minter})
+            await this.mocha.setWhiteListAccount(this.masterChef.address,true,{from:minter})
 
             await this.mocha.transferOwnership(this.masterChef.address, { from: minter });
             await this.masterChef.add('100', this.lp1.address, 500,true);
@@ -205,7 +219,7 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
             assert.equal(devaddr.valueOf(), dev);
             assert.equal(owner.valueOf(), this.masterChef.address);
         });
-    
+
         it('should allow dev and only dev to update dev', async () => {
             this.masterChef = await masterChefV2.new(this.mocha.address, dev,dev, '1000', '1000', { from: alice });
             assert.equal((await this.masterChef.devaddr()).valueOf(), dev);
@@ -257,10 +271,19 @@ contract('masterChefv2', ([alice, bob, carol, dev, minter]) => {
             await this.masterChef.setBurnFee('300', { from: alice });
             assert.equal((await this.masterChef.burnFee()).valueOf(), '300');
             await expectRevert(this.masterChef.setBurnFee('600', { from: alice }), "setBurnFee: invalid burnFee fee basis points");
-
-           
         })
-
-         
+        
+       // To test this safeBrewBurn should be set to public and a public variable burnSuccess must be made
+          // it('should test if safeBrewBurn fails and reverts with correct message', async () => {
+          //   this.masterChef = await masterChefV2.new(this.mocha.address, dev,minter, '1000', '1000', { from: alice });
+          //   await this.mocha.mint(this.masterChef.address,  web3.utils.toWei('100'), { from: minter })
+          //   await this.mocha.transferOwnership(this.masterChef.address, { from: minter });
+          //   console.log(web3.utils.fromWei((await this.mocha.balanceOf(this.masterChef.address)).valueOf()));
+          //   await this.masterChef.safeBrewBurn(web3.utils.toWei('99'), { from: minter});
+          //   console.log(web3.utils.fromWei((await this.mocha.balanceOf(this.masterChef.address)).valueOf()));
+          //   console.log(await this.masterChef.burnSuccess().valueOf());
+          //   await this.masterChef.safeBrewBurn(web3.utils.toWei('100'), { from: minter});
+          //   console.log(await this.masterChef.burnSuccess().valueOf());
+          // })
     });
 });

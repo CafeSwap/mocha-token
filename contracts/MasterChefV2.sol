@@ -276,7 +276,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         if (pending > 0) {
             user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
             uint256 fee = (pending.mul(burnFee)).div(MAX_FEE);
-            if(safeBrewBurn(fee)){
+            if(safeBrewBurn(fee)) {
                 safeBrewTransfer(msg.sender, (pending.sub(fee)));
             }
         }
@@ -302,20 +302,19 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     // Safe brew transfer function, just in case if rounding error causes pool to not have enough BREWs.
     function safeBrewTransfer(address _to, uint256 _amount) internal {
         uint256 brewBal = brew.balanceOf(address(this));
-        bool transferSuccess = false;
         if (_amount > brewBal) {
-            transferSuccess = brew.transfer(_to, brewBal);
+            brew.transfer(_to, brewBal);
         } else {
-            transferSuccess = brew.transfer(_to, _amount);
+            brew.transfer(_to, _amount);
         }
-        require(transferSuccess, "safeBrewTransfer: transfer failed");
     }
 
     function safeBrewBurn(uint256 _amount) internal returns(bool burnSuccess) {
         uint256 brewBal = brew.balanceOf(address(this));
         burnSuccess = false;
         if (_amount < brewBal) {
-            burnSuccess = brew.burn(address(this), _amount);
+            brew.burn(address(this), _amount);
+            burnSuccess = true;
         }
     }
 

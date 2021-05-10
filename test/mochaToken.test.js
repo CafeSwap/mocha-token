@@ -3,7 +3,7 @@ const MochaToken = artifacts.require('MochaToken');
 
 contract('MochaToken', ([alice, bob, carol, fee]) => {
     beforeEach(async () => {
-        this.Mocha = await MochaToken.new(fee, { from: alice });
+        this.Mocha = await MochaToken.new(fee, alice, { from: alice });
     });
 
     it('should have correct name and symbol and decimal', async () => {
@@ -37,14 +37,17 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         await this.Mocha.mint(bob, web3.utils.toWei('200'), { from: alice });
         await this.Mocha.transfer(carol, web3.utils.toWei('10'), { from: alice });
         await this.Mocha.transfer(carol, web3.utils.toWei('100'), { from: bob });
+
         const totalSupply = await this.Mocha.totalSupply();
         const aliceBal = await this.Mocha.balanceOf(alice);
         const bobBal = await this.Mocha.balanceOf(bob);
         const carolBal = await this.Mocha.balanceOf(carol);
         const FeeBal = await this.Mocha.balanceOf(fee);
+        const deadBal = await this.Mocha.balanceOf("0x000000000000000000000000000000000000dEaD");
 
-        // console.log("totalSupply",web3.utils.fromWei((totalSupply).toString()))
-        assert.equal(web3.utils.fromWei((totalSupply).toString()), '299.01');
+        // Total supply shouldn't change as we are sending it to a 0x00deaD address
+        assert.equal(web3.utils.fromWei((totalSupply).toString()), '300');
+        assert.equal(web3.utils.fromWei(deadBal.toString()), '0.99');
         assert.equal(web3.utils.fromWei(aliceBal.toString()), '90');
         assert.equal(web3.utils.fromWei(bobBal.toString()), '100');
         assert.equal(web3.utils.fromWei(carolBal.toString()), '108.9');
@@ -66,14 +69,17 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         const bobBal = await this.Mocha.balanceOf(bob);
         const carolBal = await this.Mocha.balanceOf(carol);
         const FeeBal = await this.Mocha.balanceOf(fee);
+        const deadBal = await this.Mocha.balanceOf("0x000000000000000000000000000000000000dEaD");
 
-        // console.log("totalSupply",web3.utils.fromWei((totalSupply).toString()))
-        assert.equal(web3.utils.fromWei((totalSupply).toString()), '299.01');
+        // Total supply shouldn't change as we are sending it to a 0x00deaD address
+        assert.equal(web3.utils.fromWei((totalSupply).toString()), '300');
+        assert.equal(web3.utils.fromWei(deadBal.toString()), '0.99');
         assert.equal(web3.utils.fromWei(aliceBal.toString()), '90');
         assert.equal(web3.utils.fromWei(bobBal.toString()), '100');
         assert.equal(web3.utils.fromWei(carolBal.toString()), '108.9');
         assert.equal(web3.utils.fromWei(FeeBal.toString()), '0.11');
     });
+
     it('should not mint more than 500k ', async () => {
         await this.Mocha.mint(alice, web3.utils.toWei('100'), { from: alice });
         await this.Mocha.mint(bob, web3.utils.toWei('200'), { from: alice });
@@ -89,9 +95,11 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         const bobBal = await this.Mocha.balanceOf(bob);
         const carolBal = await this.Mocha.balanceOf(carol);
         const FeeBal = await this.Mocha.balanceOf(fee);
+        const deadBal = await this.Mocha.balanceOf("0x000000000000000000000000000000000000dEaD");
 
-        // console.log("totalSupply",web3.utils.fromWei((totalSupply).toString()))
-        assert.equal(web3.utils.fromWei((totalSupply).toString()), '299.01');
+        // Total supply shouldn't change as we are sending it to a 0x00deaD address
+        assert.equal(web3.utils.fromWei((totalSupply).toString()), '300');
+        assert.equal(web3.utils.fromWei(deadBal.toString()), '0.99');
         assert.equal(web3.utils.fromWei(aliceBal.toString()), '90');
         assert.equal(web3.utils.fromWei(bobBal.toString()), '100');
         assert.equal(web3.utils.fromWei(carolBal.toString()), '108.9');
@@ -100,13 +108,13 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         
         await expectRevert(
             this.Mocha.mint(bob, web3.utils.toWei('500000'), { from: alice }),
-            'Supply is greater than HARD_CAP',
+            'Supply is greater than 500k!',
         );
         await this.Mocha.mint(bob, web3.utils.toWei('499700'), { from: alice });
 
         await expectRevert(
-            this.Mocha.mint(bob, web3.utils.toWei('1'), { from: alice }),
-            'Supply is greater than HARD_CAP',
+            this.Mocha.mint(bob, web3.utils.toWei('2'), { from: alice }),
+            'Supply is greater than 500k!',
         );
 
         await expectRevert(
@@ -119,32 +127,23 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         );
 
         await expectRevert(
-            this.Mocha.whiteListAccount(bob, 'true', { from: bob }),
-            'caller is not the admin',
+            this.Mocha.setWhiteListAccount(bob, 'true', { from: bob }),
+            'Caller not Admin!',
         );
 
         await expectRevert(
             this.Mocha.setRewardAddress(bob, { from: bob }),
-            'Ownable: caller is not the owner',
+            'Caller not Admin!',
         );
 
+        await this.Mocha.transferOwnership(carol, { from:alice })
 
         await expectRevert(
-            this.Mocha.setRewardAddress("0x0000000000000000000000000000000000000000", { from: alice }),
-            'zero address',
-        );
-        
-        await this.Mocha.transferOwnership(carol,{from:alice})
-
-        await expectRevert(
-            this.Mocha.whiteListAccount(bob, 1, { from: carol }),
-            'caller is not the admin',
+            this.Mocha.setWhiteListAccount(bob, 1, { from: carol }),
+            'Caller not Admin!',
         );
 
-        await this.Mocha.whiteListAccount(alice,true,{from:alice})
-
-
-
+        await this.Mocha.setWhiteListAccount(alice,true,{from:alice})
     });
 
     it('should supply token transfers properly with no fee deduction if sender or receiver address is whiteList ', async () => {
@@ -155,11 +154,11 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         await this.Mocha.approve(carol, web3.utils.toWei('10'), { from: alice });
         await this.Mocha.approve(carol, web3.utils.toWei('100'), { from: bob });
 
-        await this.Mocha.whiteListAccount(alice,true,{from:alice})
+        await this.Mocha.setWhiteListAccount(alice,true,{from:alice})
         await this.Mocha.transferFrom(alice,carol, web3.utils.toWei('10'), { from: carol });
-        await this.Mocha.whiteListAccount(carol,true,{from:alice})
+        await this.Mocha.setWhiteListAccount(carol,true,{from:alice})
         await this.Mocha.transferFrom(bob,carol, web3.utils.toWei('100'), { from: carol });
-        await this.Mocha.whiteListAccount(carol,false,{from:alice})
+        await this.Mocha.setWhiteListAccount(carol,false,{from:alice})
 
 
         const totalSupply = await this.Mocha.totalSupply();
@@ -167,8 +166,8 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         const bobBal = await this.Mocha.balanceOf(bob);
         const carolBal = await this.Mocha.balanceOf(carol);
         const FeeBal = await this.Mocha.balanceOf(fee);
+        const deadBal = await this.Mocha.balanceOf("0x000000000000000000000000000000000000dEaD");
 
-        // console.log("totalSupply",web3.utils.fromWei((totalSupply).toString()))
         assert.equal(web3.utils.fromWei((totalSupply).toString()), '300');
         assert.equal(web3.utils.fromWei(aliceBal.toString()), '90');
         assert.equal(web3.utils.fromWei(bobBal.toString()), '100');
@@ -178,9 +177,8 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         await this.Mocha.transfer(carol, web3.utils.toWei('1'), { from: bob });
         assert.equal(web3.utils.fromWei((await this.Mocha.balanceOf(carol)).toString()), '110.99');
         assert.equal(web3.utils.fromWei((await this.Mocha.balanceOf(fee)).toString()), '0.001');
-        assert.equal(web3.utils.fromWei((await this.Mocha.totalSupply()).toString()), '299.991');
-
-
+        assert.equal(web3.utils.fromWei((await this.Mocha.totalSupply()).toString()), '300');
+        assert.equal(web3.utils.fromWei(deadBal.toString()), '0');
     });
 
 
@@ -188,11 +186,11 @@ contract('MochaToken', ([alice, bob, carol, fee]) => {
         await this.Mocha.mint(alice, web3.utils.toWei('100'), { from: alice });
         await expectRevert(
             this.Mocha.transfer(carol, web3.utils.toWei('110'), { from: alice }),
-            'BEP20: transfer amount exceeds balance',
+            'ERC20: transfer amount exceeds balance',
         );
         await expectRevert(
             this.Mocha.transfer(carol, '1', { from: bob }),
-            'BEP20: transfer amount exceeds balance',
+            'ERC20: transfer amount exceeds balance',
         );
     });
   });
