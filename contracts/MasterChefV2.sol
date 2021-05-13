@@ -80,8 +80,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     // The totalSupply 
     uint256 public totalSupply;
     uint256 public constant HARD_CAP = 450000e18;
-    uint256 public constant MAX_FEE = 10000; 
-    uint256 public burnFee = 500; 
 
     // Brew referral contract address.
     IBrewReferral public brewReferral;
@@ -100,7 +98,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     event SetFeeAddress(address indexed user, address indexed newAddress);
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 brewPerBlock);
-    event SetBurnFee(uint256 newFee);
     event ReferralCommissionPaid(address indexed user, address indexed referrer, uint256 commissionAmount);
     event RewardLockedUp(address indexed user, uint256 indexed pid, uint256 amountLockedUp);
 
@@ -267,12 +264,9 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                 );
             if (pending > 0) {
                 user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-                uint256 fee = (pending.mul(burnFee)).div(MAX_FEE);
-                if(safeBrewBurn(fee)){
-                    uint256 commissionAmount = calculateCommission(pending.sub(fee));
-                    safeBrewTransfer(msg.sender, (pending.sub(fee).sub(commissionAmount)));
-                    payReferralCommission(msg.sender, commissionAmount);
-                }
+                uint256 commissionAmount = calculateCommission(pending);
+                safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
+                payReferralCommission(msg.sender, commissionAmount);
             }
         }
         if (_amount > 0) {
@@ -305,12 +299,9 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             );
         if (pending > 0) {
             user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-            uint256 fee = (pending.mul(burnFee)).div(MAX_FEE);
-            if(safeBrewBurn(fee)) {
-                uint256 commissionAmount = calculateCommission(pending.sub(fee));
-                safeBrewTransfer(msg.sender, (pending.sub(fee).sub(commissionAmount)));
-                payReferralCommission(msg.sender, commissionAmount);
-            }
+            uint256 commissionAmount = calculateCommission(pending);
+            safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
+            payReferralCommission(msg.sender, commissionAmount);
         }
         if (_amount > 0) {
             user.amount = user.amount.sub(_amount);
@@ -341,15 +332,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         }
     }
 
-    function safeBrewBurn(uint256 _amount) internal returns(bool burnSuccess) {
-        uint256 brewBal = brew.balanceOf(address(this));
-        burnSuccess = false;
-        if (_amount < brewBal) {
-            brew.burn(address(this), _amount);
-            burnSuccess = true;
-        }
-    }
-
     // Update dev address by the previous dev.
     function dev(address _devaddr) external {
         require(msg.sender == devaddr && _devaddr != address(0x0), "dev: wut?");
@@ -369,12 +351,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         require(_brewPerBlock <= 1e18 ,"invalid brewPerBlock");
         brewPerBlock = _brewPerBlock;
         emit UpdateEmissionRate(msg.sender, _brewPerBlock);
-    }
-
-    function setBurnFee(uint256 _burnFee) external onlyOwner {
-        require( _burnFee <= 500, "setBurnFee: invalid burnFee fee basis points"); // max 5%
-        burnFee = _burnFee;
-        emit SetBurnFee(_burnFee);
     }
 
     // Update the brew referral contract address by the owner
