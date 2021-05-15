@@ -264,7 +264,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                 );
             if (pending > 0) {
                 user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-                uint256 commissionAmount = calculateCommission(pending);
+                uint256 commissionAmount = calculateCommission(pending, msg.sender);
                 safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
                 payReferralCommission(msg.sender, commissionAmount);
             }
@@ -299,7 +299,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             );
         if (pending > 0) {
             user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-            uint256 commissionAmount = calculateCommission(pending);
+            uint256 commissionAmount = calculateCommission(pending, msg.sender);
             safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
             payReferralCommission(msg.sender, commissionAmount);
         }
@@ -365,11 +365,13 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Function used to calculate a commission on the amount
-    function calculateCommission(uint256 _amount) public view returns (uint256 commissionAmount){
+    function calculateCommission(uint256 _amount, address _user) public view returns (uint256 commissionAmount){
+        commissionAmount = 0;
         if (address(brewReferral) != address(0) && referralCommissionRate > 0) {
-            commissionAmount = _amount.mul(referralCommissionRate).div(10000);
-        } else {
-            commissionAmount = 0;
+            address referrer = brewReferral.getReferrer(_user);
+            if (referrer != address(0)){
+                commissionAmount = _amount.mul(referralCommissionRate).div(10000);
+            }
         }
     }
 

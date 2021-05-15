@@ -1415,7 +1415,12 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
-        if (_amount > 0 && address(brewReferral) != address(0) && _referrer != address(0) && _referrer != msg.sender) {
+        if (
+            _amount > 0 &&
+            address(brewReferral) != address(0) &&
+            _referrer != address(0) &&
+            _referrer != msg.sender
+        ) {
             brewReferral.recordReferral(msg.sender, _referrer);
         }
         if (user.amount > 0) {
@@ -1461,6 +1466,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         if (pending > 0) {
             user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
             uint256 commissionAmount = calculateCommission(pending, msg.sender);
+            // BUG HERE
             safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
             payReferralCommission(msg.sender, commissionAmount);
         }
