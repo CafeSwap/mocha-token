@@ -1261,6 +1261,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     event UpdateEmissionRate(address indexed user, uint256 brewPerBlock);
     event ReferralCommissionPaid(address indexed user, address indexed referrer, uint256 commissionAmount);
     event RewardLockedUp(address indexed user, uint256 indexed pid, uint256 amountLockedUp);
+    event NewBrewReferral(address indexed brewReferral);
 
     constructor(
         MochaToken _brew,
@@ -1515,12 +1516,13 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Update the brew referral contract address by the owner
-    function setBrewReferral(IBrewReferral _brewReferral) public onlyOwner {
+    function setBrewReferral(IBrewReferral _brewReferral) external onlyOwner {
         brewReferral = _brewReferral;
+        emit NewBrewReferral(address(_brewReferral));
     }
 
     // Update referral commission rate by the owner
-    function setReferralCommissionRate(uint16 _referralCommissionRate) public onlyOwner {
+    function setReferralCommissionRate(uint16 _referralCommissionRate) external onlyOwner {
         require(_referralCommissionRate <= MAXIMUM_REFERRAL_COMMISSION_RATE, "setReferralCommissionRate: invalid referral commission rate basis points");
         referralCommissionRate = _referralCommissionRate;
     }

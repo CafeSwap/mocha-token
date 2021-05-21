@@ -1261,6 +1261,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     event UpdateEmissionRate(address indexed user, uint256 brewPerBlock);
     event ReferralCommissionPaid(address indexed user, address indexed referrer, uint256 commissionAmount);
     event RewardLockedUp(address indexed user, uint256 indexed pid, uint256 amountLockedUp);
+    event NewBrewReferral(address indexed brewReferral);
 
     constructor(
         MochaToken _brew,
@@ -1415,12 +1416,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
-        if (
-            _amount > 0 &&
-            address(brewReferral) != address(0) &&
-            _referrer != address(0) &&
-            _referrer != msg.sender
-        ) {
+        if (_amount > 0 && address(brewReferral) != address(0) && _referrer != address(0) && _referrer != msg.sender) {
             brewReferral.recordReferral(msg.sender, _referrer);
         }
         if (user.amount > 0) {
@@ -1466,7 +1462,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         if (pending > 0) {
             user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
             uint256 commissionAmount = calculateCommission(pending, msg.sender);
-            // BUG HERE
             safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
             payReferralCommission(msg.sender, commissionAmount);
         }
@@ -1521,12 +1516,13 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Update the brew referral contract address by the owner
-    function setBrewReferral(IBrewReferral _brewReferral) public onlyOwner {
+    function setBrewReferral(IBrewReferral _brewReferral) external onlyOwner {
         brewReferral = _brewReferral;
+        emit NewBrewReferral(address(_brewReferral));
     }
 
     // Update referral commission rate by the owner
-    function setReferralCommissionRate(uint16 _referralCommissionRate) public onlyOwner {
+    function setReferralCommissionRate(uint16 _referralCommissionRate) external onlyOwner {
         require(_referralCommissionRate <= MAXIMUM_REFERRAL_COMMISSION_RATE, "setReferralCommissionRate: invalid referral commission rate basis points");
         referralCommissionRate = _referralCommissionRate;
     }
