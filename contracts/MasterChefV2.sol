@@ -13,7 +13,8 @@ interface IBrewReferral {
     /**
      * @dev Record referral commission.
      */
-    function recordReferralCommission(address referrer, uint256 commission) external;
+    function recordReferralCommission(address referrer, uint256 commission)
+        external;
 
     /**
      * @dev Get the referrer address that referred the user.
@@ -77,8 +78,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     uint256 public totalAllocPoint = 0;
     // The block number when BREW mining starts.
     uint256 public startBlock;
-    // The totalSupply 
-    uint256 public totalSupply;
     uint256 public constant HARD_CAP = 450000e18;
 
     // Brew referral contract address.
@@ -98,8 +97,16 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     event SetFeeAddress(address indexed user, address indexed newAddress);
     event SetDevAddress(address indexed user, address indexed newAddress);
     event UpdateEmissionRate(address indexed user, uint256 brewPerBlock);
-    event ReferralCommissionPaid(address indexed user, address indexed referrer, uint256 commissionAmount);
-    event RewardLockedUp(address indexed user, uint256 indexed pid, uint256 amountLockedUp);
+    event ReferralCommissionPaid(
+        address indexed user,
+        address indexed referrer,
+        uint256 commissionAmount
+    );
+    event RewardLockedUp(
+        address indexed user,
+        uint256 indexed pid,
+        uint256 amountLockedUp
+    );
     event NewBrewReferral(address indexed brewReferral);
 
     constructor(
@@ -114,7 +121,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         feeAddress = _feeAddress;
         brewPerBlock = _brewPerBlock;
         startBlock = _startBlock;
-    }  
+    }
 
     modifier nonDuplicated(IBEP20 _lpToken) {
         require(poolExistence[_lpToken] == false, "nonDuplicated: duplicated");
@@ -126,7 +133,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         _;
     }
 
-      function poolLength() public view returns (uint256) {
+    function poolLength() public view returns (uint256) {
         return poolInfo.length;
     }
 
@@ -181,15 +188,19 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Return reward multiplier over the given _from to _to block.
-    function getMultiplier(uint256 _from, uint256 _to) public pure returns (uint256) {
+    function getMultiplier(uint256 _from, uint256 _to)
+        public
+        pure
+        returns (uint256)
+    {
         return _to.sub(_from);
     }
 
     // View function to see pending BREWs on frontend.
     function pendingBrew(uint256 _pid, address _user)
         external
-        isPoolExist(_pid)
         view
+        isPoolExist(_pid)
         returns (uint256)
     {
         PoolInfo storage pool = poolInfo[_pid];
@@ -203,9 +214,10 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                 multiplier.mul(brewPerBlock).mul(pool.allocPoint).div(
                     totalAllocPoint
                 );
-            if(totalSupply.add(brewReward) >= HARD_CAP){
+            uint256 totalSupply = brew.totalSupply();
+            if (totalSupply.add(brewReward) >= HARD_CAP) {
                 brewReward = HARD_CAP.sub(totalSupply);
-            }    
+            }
             brewReward = brewReward.sub(brewReward.div(10));
             accBrewPerShare = accBrewPerShare.add(
                 brewReward.mul(1e12).div(lpSupply)
@@ -229,18 +241,25 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
             return;
         }
         uint256 lpSupply = pool.lpToken.balanceOf(address(this));
-        if (lpSupply == 0 || pool.allocPoint == 0 || brewPerBlock == 0|| totalSupply == HARD_CAP ) {
+        uint256 totalSupply = brew.totalSupply();
+        if (
+            lpSupply == 0 ||
+            pool.allocPoint == 0 ||
+            brewPerBlock == 0 ||
+            totalSupply == HARD_CAP
+        ) {
             pool.lastRewardBlock = block.number;
             return;
         }
         uint256 multiplier = getMultiplier(pool.lastRewardBlock, block.number);
-        uint256 brewReward = 
-            multiplier.mul(brewPerBlock).mul(pool.allocPoint).div(totalAllocPoint);
-        if(totalSupply.add(brewReward) >= HARD_CAP) {
+        uint256 brewReward =
+            multiplier.mul(brewPerBlock).mul(pool.allocPoint).div(
+                totalAllocPoint
+            );
+        if (totalSupply.add(brewReward) >= HARD_CAP) {
             brewReward = HARD_CAP.sub(totalSupply);
             brewPerBlock = 0;
-        }    
-        totalSupply = totalSupply.add(brewReward);
+        }
         brew.mint(devaddr, brewReward.div(10));
         brewReward = brewReward.sub(brewReward.div(10));
         brew.mint(address(this), brewReward);
@@ -251,11 +270,20 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Deposit LP tokens to MasterChef for BREW allocation.
-    function deposit(uint256 _pid, uint256 _amount, address _referrer) external nonReentrant isPoolExist(_pid) {
+    function deposit(
+        uint256 _pid,
+        uint256 _amount,
+        address _referrer
+    ) external nonReentrant isPoolExist(_pid) {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         updatePool(_pid);
-        if (_amount > 0 && address(brewReferral) != address(0) && _referrer != address(0) && _referrer != msg.sender) {
+        if (
+            _amount > 0 &&
+            address(brewReferral) != address(0) &&
+            _referrer != address(0) &&
+            _referrer != msg.sender
+        ) {
             brewReferral.recordReferral(msg.sender, _referrer);
         }
         if (user.amount > 0) {
@@ -264,8 +292,11 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
                     user.rewardDebt
                 );
             if (pending > 0) {
-                user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(1e12);
-                uint256 commissionAmount = calculateCommission(pending, msg.sender);
+                user.rewardDebt = user.amount.mul(pool.accBrewPerShare).div(
+                    1e12
+                );
+                uint256 commissionAmount =
+                    calculateCommission(pending, msg.sender);
                 safeBrewTransfer(msg.sender, (pending.sub(commissionAmount)));
                 payReferralCommission(msg.sender, commissionAmount);
             }
@@ -289,7 +320,11 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Withdraw LP tokens from MasterChef.
-    function withdraw(uint256 _pid, uint256 _amount) external nonReentrant isPoolExist(_pid) {
+    function withdraw(uint256 _pid, uint256 _amount)
+        external
+        nonReentrant
+        isPoolExist(_pid)
+    {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         require(user.amount >= _amount, "withdraw: not good");
@@ -313,7 +348,11 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
-    function emergencyWithdraw(uint256 _pid) external nonReentrant isPoolExist(_pid) {
+    function emergencyWithdraw(uint256 _pid)
+        external
+        nonReentrant
+        isPoolExist(_pid)
+    {
         PoolInfo storage pool = poolInfo[_pid];
         UserInfo storage user = userInfo[_pid][msg.sender];
         uint256 amount = user.amount;
@@ -341,7 +380,10 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     function setFeeAddress(address _feeAddress) external {
-        require(msg.sender == feeAddress && _feeAddress != address(0x0), "setFeeAddress: FORBIDDEN");
+        require(
+            msg.sender == feeAddress && _feeAddress != address(0x0),
+            "setFeeAddress: FORBIDDEN"
+        );
         feeAddress = _feeAddress;
         emit SetFeeAddress(msg.sender, _feeAddress);
     }
@@ -349,7 +391,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     //Pancake has to add hidden dummy pools inorder to alter the emission, here we make it simple and transparent to all.
     function updateEmissionRate(uint256 _brewPerBlock) external onlyOwner {
         massUpdatePools();
-        require(_brewPerBlock <= 1e18 ,"invalid brewPerBlock");
+        require(_brewPerBlock <= 1e18, "invalid brewPerBlock");
         brewPerBlock = _brewPerBlock;
         emit UpdateEmissionRate(msg.sender, _brewPerBlock);
     }
@@ -361,29 +403,46 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     // Update referral commission rate by the owner
-    function setReferralCommissionRate(uint16 _referralCommissionRate) external onlyOwner {
-        require(_referralCommissionRate <= MAXIMUM_REFERRAL_COMMISSION_RATE, "setReferralCommissionRate: invalid referral commission rate basis points");
+    function setReferralCommissionRate(uint16 _referralCommissionRate)
+        external
+        onlyOwner
+    {
+        require(
+            _referralCommissionRate <= MAXIMUM_REFERRAL_COMMISSION_RATE,
+            "setReferralCommissionRate: invalid referral commission rate basis points"
+        );
         referralCommissionRate = _referralCommissionRate;
     }
 
     // Function used to calculate a commission on the amount
-    function calculateCommission(uint256 _amount, address _user) public view returns (uint256 commissionAmount){
+    function calculateCommission(uint256 _amount, address _user)
+        public
+        view
+        returns (uint256 commissionAmount)
+    {
         commissionAmount = 0;
         if (address(brewReferral) != address(0) && referralCommissionRate > 0) {
             address referrer = brewReferral.getReferrer(_user);
-            if (referrer != address(0)){
-                commissionAmount = _amount.mul(referralCommissionRate).div(10000);
+            if (referrer != address(0)) {
+                commissionAmount = _amount.mul(referralCommissionRate).div(
+                    10000
+                );
             }
         }
     }
 
     // Pay referral commission to the referrer who referred this user.
-    function payReferralCommission(address _user, uint256 _commissionAmount) internal {
+    function payReferralCommission(address _user, uint256 _commissionAmount)
+        internal
+    {
         if (address(brewReferral) != address(0) && referralCommissionRate > 0) {
             address referrer = brewReferral.getReferrer(_user);
             if (referrer != address(0) && _commissionAmount > 0) {
                 safeBrewTransfer(referrer, _commissionAmount);
-                brewReferral.recordReferralCommission(referrer, _commissionAmount);
+                brewReferral.recordReferralCommission(
+                    referrer,
+                    _commissionAmount
+                );
                 emit ReferralCommissionPaid(_user, referrer, _commissionAmount);
             }
         }
