@@ -1,8 +1,14 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.6.12;
 
 import "./lib/ReentrancyGuard.sol";
 import "./lib/SafeBEP20.sol";
 import "./MochaToken.sol";
+
+interface ICafeSwapSafeTransfer {
+    function safeMochaTransfer(address _to, uint256 _amount) external;
+}
 
 interface IBrewReferral {
     /**
@@ -65,7 +71,6 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     address public devaddr;
     // BREW tokens created per block.
     uint256 public brewPerBlock;
-    // Bonus muliplier for early brew makers.
     // Deposit Fee address
     address public feeAddress;
 
@@ -86,6 +91,9 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     uint16 public referralCommissionRate = 100;
     // Max referral commission rate: 10%.
     uint16 public constant MAXIMUM_REFERRAL_COMMISSION_RATE = 1000;
+
+    // cafeSwapTransfer helper to be able to stake brew tokens
+    ICafeSwapSafeTransfer public cafeSwapTransfer;
 
     event Deposit(address indexed user, uint256 indexed pid, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed pid, uint256 amount);
@@ -114,13 +122,15 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         address _devaddr,
         address _feeAddress,
         uint256 _brewPerBlock,
-        uint256 _startBlock
+        uint256 _startBlock,
+        ICafeSwapSafeTransfer _cafeSwapTransfer
     ) public {
         brew = _brew;
         devaddr = _devaddr;
         feeAddress = _feeAddress;
         brewPerBlock = _brewPerBlock;
         startBlock = _startBlock;
+        cafeSwapTransfer = _cafeSwapTransfer;
     }
 
     modifier nonDuplicated(IBEP20 _lpToken) {
@@ -262,7 +272,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         }
         brew.mint(devaddr, brewReward.div(10));
         brewReward = brewReward.sub(brewReward.div(10));
-        brew.mint(address(this), brewReward);
+        brew.mint(address(cafeSwapTransfer), brewReward);
         pool.accBrewPerShare = pool.accBrewPerShare.add(
             brewReward.mul(1e12).div(lpSupply)
         );
@@ -362,14 +372,8 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
         emit EmergencyWithdraw(msg.sender, _pid, amount);
     }
 
-    // Safe brew transfer function, just in case if rounding error causes pool to not have enough BREWs.
     function safeBrewTransfer(address _to, uint256 _amount) internal {
-        uint256 brewBal = brew.balanceOf(address(this));
-        if (_amount > brewBal) {
-            brew.transfer(_to, brewBal);
-        } else {
-            brew.transfer(_to, _amount);
-        }
+      cafeSwapTransfer.safeMochaTransfer(_to, _amount);
     }
 
     // Update dev address by the previous dev.
