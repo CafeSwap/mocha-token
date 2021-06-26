@@ -1382,7 +1382,7 @@ pragma solidity ^0.6.12;
 
 
 interface ICafeSwapSafeTransfer {
-    function safeMochaTransfer(address _to, uint256 _amount) external;
+    function safeBrewTransfer(address _to, uint256 _amount) external;
 }
 
 interface IBrewReferral {
@@ -1748,7 +1748,7 @@ contract MasterChefV2 is Ownable, ReentrancyGuard {
     }
 
     function safeBrewTransfer(address _to, uint256 _amount) internal {
-      cafeSwapTransfer.safeMochaTransfer(_to, _amount);
+      cafeSwapTransfer.safeBrewTransfer(_to, _amount);
     }
 
     // Update dev address by the previous dev.
